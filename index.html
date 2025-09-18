@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sales Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    #chart, #map { margin: 30px auto; display: block; }
+    #chart { width: 900px; height: 400px; }
+    #map { width: 90vw; height: 60vh; }
+  </style>
+</head>
+<body>
+  <h1>Company Sales Dashboard</h1>
+  <h2>Running Total Sales Over Time</h2>
+  <div id="chart"></div>
+  <h2>Sales by Country</h2>
+  <div id="map"></div>
+  <script>
+    async function loadCSV(url) {
+      const res = await fetch(url);
+      const text = await res.text();
+      return text.split('\n').map(line => line.split(','));
+    }
+
+    (async function() {
+      const salesRows = await loadCSV('sales.csv');
+      // Parse running total sales
+      let dateIdx = salesRows[0].indexOf('SaleDate');
+      let runningIdx = salesRows[0].indexOf('RunningTotalSales');
+      let dates = [], runningTotals = [];
+      for (let i = 1; i < salesRows.length; i++) {
+        if (salesRows[i].length < 3) break;
+        dates.push(salesRows[i][dateIdx]);
+        runningTotals.push(Number(salesRows[i][runningIdx]));
+      }
+      Plotly.newPlot('chart', [{
+        x: dates,
+        y: runningTotals,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { color: '#0074D9' },
+        marker: { size: 4 },
+        name: 'Running Total Sales'
+      }], {
+        xaxis: { title: 'Date' },
+        yaxis: { title: 'Running Total Sales' },
+        margin: { t: 30 }
+      });
+      // Parse country sales
+      let countryStart = salesRows.findIndex(row => row[0] === 'Country');
+      let countries = [], totals = [];
+      for (let i = countryStart + 1; i < salesRows.length; i++) {
+        let row = salesRows[i];
+        if (!row[0] || !row[1]) break;
+        countries.push(row[0]);
+        totals.push(Number(row[1]));
+      }
+      Plotly.newPlot('map', [{
+        type: 'choropleth',
+        locationmode: 'country names',
+        locations: countries,
+        z: totals,
+        colorscale: 'Blues', // default is light=low, dark=high
+        reversescale: true, // flip so more sales = darker
+        colorbar: { title: 'Items Sold' },
+        marker: { line: { color: 'gray', width: 0.5 } }
+      }], {
+        geo: { projection: { type: 'natural earth' } },
+        margin: { t: 0, b: 0 }
+      });
+    })();
+  </script>
+</body>
+</html>
